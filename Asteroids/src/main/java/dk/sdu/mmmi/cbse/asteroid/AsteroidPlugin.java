@@ -13,10 +13,14 @@ import java.util.Random;
  */
 public class AsteroidPlugin implements IGamePluginService {
 
+    private static final int STARTING_ASTEROID_COUNT = 4;
+    private static final Random RANDOM = new Random();
+
     @Override
     public void start(GameData gameData, World world) {
-        Entity asteroid = createAsteroid(gameData);
-        world.addEntity(asteroid);
+        for (int i = 0; i < STARTING_ASTEROID_COUNT; i++) {
+            world.addEntity(createAsteroid(gameData));
+        }
     }
 
     @Override
@@ -27,15 +31,25 @@ public class AsteroidPlugin implements IGamePluginService {
         }
     }
 
-    private Entity createAsteroid(GameData gameData) {
+    public static Entity createAsteroid(GameData gameData) {
         Entity asteroid = new Asteroid();
-        Random rnd = new Random();
-        int size = rnd.nextInt(10) + 5;
-        asteroid.setPolygonCoordinates(size, -size, -size, -size, -size, size, size, size);
-        asteroid.setX(0);
-        asteroid.setY(0);
+        int size = (RANDOM.nextInt(10) + 5) * 2;
+        asteroid.setPolygonCoordinates(
+                0, size,
+                size, size / 3,
+                size * 2 / 3, -size,
+                -size * 2 / 3, -size,
+                -size, size / 3
+        );
+        if (gameData != null) {
+            asteroid.setX(RANDOM.nextDouble() * gameData.getDisplayWidth());
+            asteroid.setY(RANDOM.nextDouble() * gameData.getDisplayHeight());
+        } else {
+            asteroid.setX(0);
+            asteroid.setY(0);
+        }
         asteroid.setRadius(size);
-        asteroid.setRotation(rnd.nextInt(90));
+        asteroid.setRotation(RANDOM.nextInt(360));
         return asteroid;
     }
 }

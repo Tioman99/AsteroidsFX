@@ -2,6 +2,8 @@ package dk.sdu.mmmi.cbse.bulletsystem;
 
 import dk.sdu.mmmi.cbse.common.bullet.Bullet;
 import dk.sdu.mmmi.cbse.common.bullet.BulletSPI;
+import dk.sdu.mmmi.cbse.common.bullet.EnemyBullet;
+import dk.sdu.mmmi.cbse.common.bullet.PlayerBullet;
 import dk.sdu.mmmi.cbse.common.data.Entity;
 import dk.sdu.mmmi.cbse.common.data.GameData;
 import dk.sdu.mmmi.cbse.common.data.World;
@@ -12,7 +14,10 @@ public class BulletControlSystem implements IEntityProcessingService, BulletSPI 
     @Override
     public void process(GameData gameData, World world) {
 
-        for (Entity bullet : world.getEntities(Bullet.class)) {
+        for (Entity bullet : world.getEntities()) {
+            if (!(bullet instanceof Bullet)) {
+                continue;
+            }
             double changeX = Math.cos(Math.toRadians(bullet.getRotation()));
             double changeY = Math.sin(Math.toRadians(bullet.getRotation()));
             bullet.setX(bullet.getX() + changeX * 3);
@@ -22,7 +27,15 @@ public class BulletControlSystem implements IEntityProcessingService, BulletSPI 
 
     @Override
     public Entity createBullet(Entity shooter, GameData gameData) {
-        Entity bullet = new Bullet();
+        Entity bullet;
+        String shooterType = shooter.getClass().getSimpleName();
+        if ("Player".equals(shooterType)) {
+            bullet = new PlayerBullet();
+        } else if ("Enemy".equals(shooterType)) {
+            bullet = new EnemyBullet();
+        } else {
+            bullet = new Bullet();
+        }
         bullet.setPolygonCoordinates(1, -1, 1, 1, -1, 1, -1, -1);
         double changeX = Math.cos(Math.toRadians(shooter.getRotation()));
         double changeY = Math.sin(Math.toRadians(shooter.getRotation()));
