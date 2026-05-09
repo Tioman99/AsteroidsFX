@@ -47,7 +47,7 @@ public class CollisionDetector implements IPostEntityProcessingService {
                 }
 
                 if (collides(entity1, entity2)) {
-                    handleCollision(world, entity1, entity2, removedThisFrame);
+                    handleCollision(gameData, world, entity1, entity2, removedThisFrame);
                 }
             }
         }
@@ -55,7 +55,7 @@ public class CollisionDetector implements IPostEntityProcessingService {
         shipHits.keySet().removeIf(id -> world.getEntity(id) == null);
     }
 
-    private void handleCollision(World world, Entity entity1, Entity entity2, Set<String> removedThisFrame) {
+    private void handleCollision(GameData gameData, World world, Entity entity1, Entity entity2, Set<String> removedThisFrame) {
         Entity bullet = getBullet(entity1, entity2);
         Entity asteroid = getAsteroid(entity1, entity2);
         Entity ship = getShip(entity1, entity2);
@@ -71,6 +71,9 @@ public class CollisionDetector implements IPostEntityProcessingService {
         }
 
         if (ship != null && asteroid != null) {
+            if (ship instanceof Player) {
+                gameData.setPlayerDead(true);
+            }
             remove(world, removedThisFrame, ship);
             remove(world, removedThisFrame, asteroid);
             return;
@@ -81,6 +84,9 @@ public class CollisionDetector implements IPostEntityProcessingService {
 
             int hits = shipHits.getOrDefault(ship.getID(), 0) + 1;
             if (hits >= SHIP_HIT_POINTS) {
+                if (ship instanceof Player) {
+                    gameData.setPlayerDead(true);
+                }
                 remove(world, removedThisFrame, ship);
                 shipHits.remove(ship.getID());
             } else {
