@@ -4,72 +4,80 @@ import java.lang.module.Configuration;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReference;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Utility for locating services from a child {@link ModuleLayer} built from the
+ * {@code plugins/} directory.
+ *
+ * <p><strong>Note:</strong> For full dynamic loading and unloading support (including
+ * runtime hot-swap of plugin JARs), prefer {@code PluginManager} in the Core module.
+ * {@code ServiceLocator} provides a simpler, snapshot-at-startup view of the same
+ * plugins directory and does not watch for filesystem changes.</p>
+ */
 public enum ServiceLocator {
 
     INSTANCE;
 
-    private static final Map<Class, ServiceLoader> loadermap = new HashMap<>();
+    private static final Map<Class<?>, ServiceLoader<?>> loaderMap = new HashMap<>();
     private final ModuleLayer layer;
 
     ServiceLocator() {
+        Path pluginsDir = Paths.get("plugins");
+        ModuleLayer resolvedLayer = null;
+
         try {
-            Path pluginsDir = Paths.get("plugins"); // Directory with plugins JARs
+            if (Files.exists(pluginsDir) && Files.isDirectory(pluginsDir)) {
+                ModuleFinder pluginsFinder = ModuleFinder.of(pluginsDir);
 
-            // Search for plugins in the plugins directory
-            ModuleFinder pluginsFinder = ModuleFinder.of(pluginsDir);
+                List<String> plugins = pluginsFinder
+                        .findAll()
+                        .stream()
+                        .map(ModuleReference::descriptor)
+                        .map(ModuleDescriptor::name)
+                        .filter(name -> ModuleLayer.boot().findModule(name).isEmpty())
+                        .collect(Collectors.toList());
 
-            // Find all names of all found plugin modules
-            List<String> plugins = pluginsFinder
-                    .findAll()
-                    .stream()
-                    .map(ModuleReference::descriptor)
-                    .map(ModuleDescriptor::name)
-                    .collect(Collectors.toList());
+                if (!plugins.isEmpty()) {
+                    Configuration pluginsConfiguration = ModuleLayer
+                            .boot()
+                            .configuration()
+                            .resolve(pluginsFinder, ModuleFinder.of(), plugins);
 
-            // Create configuration that will resolve plugin modules
-            // (verify that the graph of modules is correct)
-            Configuration pluginsConfiguration = ModuleLayer
-                    .boot()
-                    .configuration()
-                    .resolve(pluginsFinder, ModuleFinder.of(), plugins);
-
-            // Create a module layer for plugins
-            layer = ModuleLayer
-                    .boot()
-                    .defineModulesWithOneLoader(pluginsConfiguration, ClassLoader.getSystemClassLoader());
+                    resolvedLayer = ModuleLayer
+                            .boot()
+                            .defineModulesWithOneLoader(pluginsConfiguration,
+                                    ClassLoader.getSystemClassLoader());
+                }
+            }
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            System.err.println("[ServiceLocator] Could not build plugin layer: " + e.getMessage());
         }
 
+        this.layer = resolvedLayer != null ? resolvedLayer : ModuleLayer.boot();
     }
 
-
+    @SuppressWarnings("unchecked")
     public <T> List<T> locateAll(Class<T> service) {
-        ServiceLoader<T> loader = loadermap.get(service);
+        ServiceLoader<T> loader = (ServiceLoader<T>) loaderMap.get(service);
 
         if (loader == null) {
             loader = ServiceLoader.load(layer, service);
-            loadermap.put(service, loader);
+            loaderMap.put(service, loader);
         }
 
-        List<T> list = new ArrayList<T>();
-
-        if (loader != null) {
-            try {
-                for (T instance : loader) {
-                    list.add(instance);
-                }
-            } catch (ServiceConfigurationError serviceError) {
-                serviceError.printStackTrace();
+        List<T> list = new ArrayList<>();
+        try {
+            for (T instance : loader) {
+                list.add(instance);
             }
+        } catch (ServiceConfigurationError serviceError) {
+            serviceError.printStackTrace();
         }
-
         return list;
     }
-
 }

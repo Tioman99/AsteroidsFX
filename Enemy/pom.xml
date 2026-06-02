@@ -9,6 +9,9 @@
     <artifactId>Enemy</artifactId>
     <packaging>jar</packaging>
     <name>Enemy</name>
+    <properties>
+        <module.output.directory>../plugins</module.output.directory>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
