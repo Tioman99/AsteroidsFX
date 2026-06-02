@@ -9,8 +9,6 @@ import dk.sdu.mmmi.cbse.common.data.Entity;
 import dk.sdu.mmmi.cbse.common.data.GameData;
 import dk.sdu.mmmi.cbse.common.data.World;
 import dk.sdu.mmmi.cbse.common.services.IPostEntityProcessingService;
-import dk.sdu.mmmi.cbse.enemysystem.Enemy;
-import dk.sdu.mmmi.cbse.playersystem.Player;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -71,7 +69,7 @@ public class CollisionDetector implements IPostEntityProcessingService {
         }
 
         if (ship != null && asteroid != null) {
-            if (ship instanceof Player) {
+            if (isPlayer(ship)) {
                 gameData.setPlayerDead(true);
             }
             remove(world, removedThisFrame, ship);
@@ -84,7 +82,7 @@ public class CollisionDetector implements IPostEntityProcessingService {
 
             int hits = shipHits.getOrDefault(ship.getID(), 0) + 1;
             if (hits >= SHIP_HIT_POINTS) {
-                if (ship instanceof Player) {
+                if (isPlayer(ship)) {
                     gameData.setPlayerDead(true);
                 }
                 remove(world, removedThisFrame, ship);
@@ -127,18 +125,30 @@ public class CollisionDetector implements IPostEntityProcessingService {
     }
 
     private Entity getShip(Entity entity1, Entity entity2) {
-        if (entity1 instanceof Player || entity1 instanceof Enemy) {
+        if (isShip(entity1)) {
             return entity1;
         }
-        if (entity2 instanceof Player || entity2 instanceof Enemy) {
+        if (isShip(entity2)) {
             return entity2;
         }
         return null;
     }
 
     private boolean isOpposingBulletHit(Entity bullet, Entity ship) {
-        return (bullet instanceof PlayerBullet && ship instanceof Enemy)
-                || (bullet instanceof EnemyBullet && ship instanceof Player);
+        return (bullet instanceof PlayerBullet && isEnemy(ship))
+                || (bullet instanceof EnemyBullet && isPlayer(ship));
+    }
+
+    private boolean isShip(Entity entity) {
+        return isPlayer(entity) || isEnemy(entity);
+    }
+
+    private boolean isPlayer(Entity entity) {
+        return "Player".equals(entity.getClass().getSimpleName());
+    }
+
+    private boolean isEnemy(Entity entity) {
+        return "Enemy".equals(entity.getClass().getSimpleName());
     }
 
     private void splitAsteroid(Entity asteroid, World world) {
