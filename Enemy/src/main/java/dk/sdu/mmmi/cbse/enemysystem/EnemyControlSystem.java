@@ -7,6 +7,7 @@ import dk.sdu.mmmi.cbse.common.data.World;
 import dk.sdu.mmmi.cbse.common.services.IEntityProcessingService;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,11 +17,37 @@ import static java.util.stream.Collectors.toList;
 public class EnemyControlSystem implements IEntityProcessingService {
 
     private static final int SHOOT_COOLDOWN_FRAMES = 45;
+    private static final int ENEMY_RESPAWN_DELAY_FRAMES = 300;
     private final Map<String, Integer> cooldownByEnemyId = new ConcurrentHashMap<>();
+    private Collection<? extends BulletSPI> bulletSpis;
+    private int respawnCountdown = -1;
 
     @Override
     public void process(GameData gameData, World world) {
-        for (Entity enemy : world.getEntities(Enemy.class)) {
+        List<Entity> enemies = world.getEntities(Enemy.class);
+        if (enemies.isEmpty()) {
+            gameData.setEnemyHealth(0);
+            if (respawnCountdown < 0) {
+                respawnCountdown = ENEMY_RESPAWN_DELAY_FRAMES;
+            }
+
+            if (respawnCountdown > 0) {
+                respawnCountdown--;
+                cooldownByEnemyId.clear();
+                return;
+            }
+
+            Enemy newEnemy = EnemyPlugin.createEnemy(gameData);
+            world.addEntity(newEnemy);
+            gameData.setEnemyHealth(GameData.DEFAULT_ENEMY_HIT_POINTS);
+            cooldownByEnemyId.put(newEnemy.getID(), SHOOT_COOLDOWN_FRAMES);
+            respawnCountdown = -1;
+            enemies = world.getEntities(Enemy.class);
+        } else {
+            respawnCountdown = -1;
+        }
+
+        for (Entity enemy : enemies) {
             Entity target = getTarget(world, enemy);
             if (target != null) {
                 double targetAngle = Math.toDegrees(Math.atan2(target.getY() - enemy.getY(), target.getX() - enemy.getX()));
@@ -44,11 +71,16 @@ public class EnemyControlSystem implements IEntityProcessingService {
     }
 
     private Collection<? extends BulletSPI> getBulletSPIs() {
+        if (bulletSpis != null) {
+            return bulletSpis;
+        }
+
         ModuleLayer layer = getClass().getModule().getLayer();
         ServiceLoader<BulletSPI> loader = layer != null
                 ? ServiceLoader.load(layer, BulletSPI.class)
                 : ServiceLoader.load(BulletSPI.class);
-        return loader.stream().map(ServiceLoader.Provider::get).collect(toList());
+        bulletSpis = loader.stream().map(ServiceLoader.Provider::get).collect(toList());
+        return bulletSpis;
     }
 
     private Entity getTarget(World world, Entity enemy) {
@@ -56,7 +88,7 @@ public class EnemyControlSystem implements IEntityProcessingService {
         double bestDistance = Double.MAX_VALUE;
 
         for (Entity candidate : world.getEntities()) {
-            if (candidate.getID().equals(enemy.getID()) || candidate instanceof Enemy) {
+            if (candidate.getID().equals(enemy.getID()) || candidate instanceof Enemy || !isPlayer(candidate)) {
                 continue;
             }
 
@@ -70,6 +102,10 @@ public class EnemyControlSystem implements IEntityProcessingService {
         }
 
         return bestTarget;
+    }
+
+    private boolean isPlayer(Entity entity) {
+        return "Player".equals(entity.getClass().getSimpleName());
     }
 
     private double normalizeAngle(double angle) {

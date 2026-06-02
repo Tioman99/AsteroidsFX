@@ -4,14 +4,9 @@ import dk.sdu.mmmi.cbse.common.asteroids.Asteroid;
 import dk.sdu.mmmi.cbse.common.asteroids.IAsteroidSplitter;
 import dk.sdu.mmmi.cbse.common.asteroids.SubAsteroid;
 import dk.sdu.mmmi.cbse.common.data.Entity;
-import dk.sdu.mmmi.cbse.common.data.GameData;
 import dk.sdu.mmmi.cbse.common.data.World;
 
-import java.util.Random;
-
 public class AsteroidSplitterImpl implements IAsteroidSplitter {
-
-    private static final int MAX_ASTEROID_BODIES = 6;
 
     @Override
     public void createSplitAsteroid(Entity e, World world) {
@@ -22,14 +17,6 @@ public class AsteroidSplitterImpl implements IAsteroidSplitter {
         SubAsteroid sub2 = createSubAsteroid(subSize, e.getX(), e.getY(), e.getRotation() - 45);
         world.addEntity(sub1);
         world.addEntity(sub2);
-
-        // Count all asteroid bodies now in world (asteroid is already removed)
-        int totalBodies = world.getEntities(Asteroid.class).size()
-                + world.getEntities(SubAsteroid.class).size();
-
-        if (totalBodies < MAX_ASTEROID_BODIES) {
-            world.addEntity(AsteroidPlugin.createAsteroid(null));
-        }
     }
 
     private SubAsteroid createSubAsteroid(float size, double x, double y, double rotation) {

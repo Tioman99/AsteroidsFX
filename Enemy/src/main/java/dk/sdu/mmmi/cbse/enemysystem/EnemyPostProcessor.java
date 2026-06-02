@@ -9,10 +9,7 @@ public class EnemyPostProcessor implements IPostEntityProcessingService {
 
     @Override
     public void process(GameData gameData, World world) {
-        int enemyCount = 0;
         for (Entity enemy : world.getEntities(Enemy.class)) {
-            enemyCount++;
-
             if (enemy.getX() < 0) {
                 enemy.setX(enemy.getX() + gameData.getDisplayWidth());
             }
@@ -25,10 +22,6 @@ public class EnemyPostProcessor implements IPostEntityProcessingService {
             if (enemy.getY() > gameData.getDisplayHeight()) {
                 enemy.setY(enemy.getY() - gameData.getDisplayHeight());
             }
-        }
-
-        if (enemyCount == 0) {
-            world.addEntity(EnemyPlugin.createEnemy(gameData));
         }
     }
 }

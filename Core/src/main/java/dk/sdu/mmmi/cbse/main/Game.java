@@ -48,7 +48,12 @@ class Game {
     private StackPane deathOverlay;
     private boolean paused = false;
     private boolean gameOver = false;
-    private Text scoreText;
+    private Text asteroidsDestroyedText;
+    private Text playerHealthText;
+    private Text enemyHealthText;
+    private int displayedAsteroidsDestroyed = Integer.MIN_VALUE;
+    private int displayedPlayerHealth = Integer.MIN_VALUE;
+    private int displayedEnemyHealth = Integer.MIN_VALUE;
     private AnimationTimer gameLoop;
 
     Game(PluginManager pluginManager) {
@@ -56,12 +61,18 @@ class Game {
     }
 
     public void start(Stage window) throws Exception {
-        scoreText = new Text(10, 20, "Destroyed asteroids: 0");
-        scoreText.setFill(Color.WHITE);
+        gameData.resetRoundState();
+
+        asteroidsDestroyedText = new Text(10, 20, "Destroyed asteroids: 0");
+        asteroidsDestroyedText.setFill(Color.WHITE);
+        playerHealthText = new Text(10, 42, "Player health: " + GameData.DEFAULT_PLAYER_HIT_POINTS);
+        playerHealthText.setFill(Color.WHITE);
+        enemyHealthText = new Text(10, 64, "Enemy health: " + GameData.DEFAULT_ENEMY_HIT_POINTS);
+        enemyHealthText.setFill(Color.WHITE);
 
         gameWindow.setPrefSize(gameData.getDisplayWidth(), gameData.getDisplayHeight());
         gameWindow.setStyle("-fx-background-color: black;");
-        gameWindow.getChildren().add(scoreText);
+        gameWindow.getChildren().addAll(asteroidsDestroyedText, playerHealthText, enemyHealthText);
 
         pauseOverlay = buildPauseOverlay();
         deathOverlay = buildDeathOverlay();
@@ -214,7 +225,7 @@ class Game {
     private void restartGame() {
         gameOver = false;
         paused = false;
-        gameData.setPlayerDead(false);
+        gameData.resetRoundState();
 
         // Discard any plugin-change signals that arrived during the game-over screen
         // to avoid a spurious reload immediately after restart.
@@ -270,6 +281,24 @@ class Game {
     }
 
     private void draw() {
+        int asteroidsDestroyed = gameData.getAsteroidsDestroyed();
+        if (asteroidsDestroyed != displayedAsteroidsDestroyed) {
+            displayedAsteroidsDestroyed = asteroidsDestroyed;
+            asteroidsDestroyedText.setText("Destroyed asteroids: " + asteroidsDestroyed);
+        }
+
+        int playerHealth = gameData.getPlayerHealth();
+        if (playerHealth != displayedPlayerHealth) {
+            displayedPlayerHealth = playerHealth;
+            playerHealthText.setText("Player health: " + playerHealth);
+        }
+
+        int enemyHealth = gameData.getEnemyHealth();
+        if (enemyHealth != displayedEnemyHealth) {
+            displayedEnemyHealth = enemyHealth;
+            enemyHealthText.setText("Enemy health: " + enemyHealth);
+        }
+
         if (gameData.isPlayerDead() && !gameOver) {
             gameOver = true;
             deathOverlay.setVisible(true);

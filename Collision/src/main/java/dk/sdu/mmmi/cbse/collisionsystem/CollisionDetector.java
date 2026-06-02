@@ -20,7 +20,8 @@ import java.util.concurrent.ConcurrentMap;
 
 public class CollisionDetector implements IPostEntityProcessingService {
 
-    private static final int SHIP_HIT_POINTS = 3;
+    private static final int SHIP_HIT_POINTS = GameData.DEFAULT_ENEMY_HIT_POINTS;
+    private static final int PLAYER_HIT_POINTS = GameData.DEFAULT_PLAYER_HIT_POINTS;
     private static final float MIN_SPLIT_RADIUS = 6f;
     private final ConcurrentMap<String, Integer> shipHits = new ConcurrentHashMap<>();
 
@@ -60,7 +61,7 @@ public class CollisionDetector implements IPostEntityProcessingService {
 
         if (bullet != null && asteroid != null) {
             remove(world, removedThisFrame, bullet);
-            remove(world, removedThisFrame, asteroid);
+            removeAsteroid(world, removedThisFrame, asteroid, gameData);
 
             if (asteroid.getRadius() / 2f >= MIN_SPLIT_RADIUS) {
                 splitAsteroid(asteroid, world);
@@ -71,9 +72,12 @@ public class CollisionDetector implements IPostEntityProcessingService {
         if (ship != null && asteroid != null) {
             if (isPlayer(ship)) {
                 gameData.setPlayerDead(true);
+                gameData.setPlayerHealth(0);
+            } else if (isEnemy(ship)) {
+                gameData.setEnemyHealth(0);
             }
             remove(world, removedThisFrame, ship);
-            remove(world, removedThisFrame, asteroid);
+            removeAsteroid(world, removedThisFrame, asteroid, gameData);
             return;
         }
 
@@ -81,7 +85,15 @@ public class CollisionDetector implements IPostEntityProcessingService {
             remove(world, removedThisFrame, bullet);
 
             int hits = shipHits.getOrDefault(ship.getID(), 0) + 1;
-            if (hits >= SHIP_HIT_POINTS) {
+            int hitPoints = isPlayer(ship) ? PLAYER_HIT_POINTS : SHIP_HIT_POINTS;
+            int remainingHealth = Math.max(0, hitPoints - hits);
+            if (isPlayer(ship)) {
+                gameData.setPlayerHealth(remainingHealth);
+            } else if (isEnemy(ship)) {
+                gameData.setEnemyHealth(remainingHealth);
+            }
+
+            if (hits >= hitPoints) {
                 if (isPlayer(ship)) {
                     gameData.setPlayerDead(true);
                 }
@@ -101,6 +113,14 @@ public class CollisionDetector implements IPostEntityProcessingService {
         if (!removedThisFrame.contains(entity.getID())) {
             world.removeEntity(entity);
             removedThisFrame.add(entity.getID());
+        }
+    }
+
+    private void removeAsteroid(World world, Set<String> removedThisFrame, Entity asteroid, GameData gameData) {
+        if (!removedThisFrame.contains(asteroid.getID())) {
+            world.removeEntity(asteroid);
+            removedThisFrame.add(asteroid.getID());
+            gameData.incrementAsteroidsDestroyed();
         }
     }
 

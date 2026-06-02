@@ -11,14 +11,19 @@ import java.util.Random;
 
 public class AsteroidProcessor implements IEntityProcessingService {
 
+    private static final int STARTING_ASTEROID_COUNT = 4;
+    private static final int ASTEROID_RESPAWN_DELAY_FRAMES = 120;
     private IAsteroidSplitter asteroidSplitter = new AsteroidSplitterImpl();
     private final Random random = new Random();
+    private int respawnCountdown = -1;
 
     @Override
     public void process(GameData gameData, World world) {
+        int asteroidCount = 0;
 
         for (Entity asteroid : world.getEntities()) {
             if (!(asteroid instanceof Asteroid)) continue;
+            asteroidCount++;
 
             // Random walk: nudge heading a little each frame for less predictable movement.
             asteroid.setRotation(asteroid.getRotation() + (random.nextDouble() - 0.5) * 6);
@@ -46,6 +51,24 @@ public class AsteroidProcessor implements IEntityProcessingService {
                 asteroid.setY(asteroid.getY() % gameData.getDisplayHeight());
             }
 
+        }
+
+        if (asteroidCount == 0) {
+            if (respawnCountdown < 0) {
+                respawnCountdown = ASTEROID_RESPAWN_DELAY_FRAMES;
+            }
+
+            if (respawnCountdown > 0) {
+                respawnCountdown--;
+                return;
+            }
+
+            for (int i = 0; i < STARTING_ASTEROID_COUNT; i++) {
+                world.addEntity(AsteroidPlugin.createAsteroid(gameData));
+            }
+            respawnCountdown = -1;
+        } else {
+            respawnCountdown = -1;
         }
 
     }
