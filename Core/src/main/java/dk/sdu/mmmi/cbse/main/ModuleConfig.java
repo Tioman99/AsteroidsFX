@@ -1,41 +1,27 @@
 package dk.sdu.mmmi.cbse.main;
 
-import dk.sdu.mmmi.cbse.common.services.IEntityProcessingService;
-import dk.sdu.mmmi.cbse.common.services.IGamePluginService;
-import dk.sdu.mmmi.cbse.common.services.IPostEntityProcessingService;
-import java.util.List;
-import java.util.ServiceLoader;
-import static java.util.stream.Collectors.toList;
+import java.nio.file.Paths;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
+ * Spring configuration that wires together the core game objects.
  *
- * @author jcs
+ * <p>Service discovery (static and dynamic) is delegated entirely to
+ * {@link PluginManager}. Static plugins are resolved from the boot module layer
+ * via {@link java.util.ServiceLoader}; dynamic plugins are loaded from the
+ * {@code plugins/} directory at runtime without recompilation.</p>
  */
 @Configuration
 class ModuleConfig {
-    
-    public ModuleConfig() {
+
+    @Bean
+    public PluginManager pluginManager() {
+        return new PluginManager(Paths.get("plugins"));
     }
 
     @Bean
-    public Game game(){
-        return new Game(gamePluginServices(), entityProcessingServiceList(), postEntityProcessingServices());
-    }
-
-    @Bean
-    public List<IEntityProcessingService> entityProcessingServiceList(){
-        return ServiceLoader.load(IEntityProcessingService.class).stream().map(ServiceLoader.Provider::get).collect(toList());
-    }
-
-    @Bean
-    public List<IGamePluginService> gamePluginServices() {
-        return ServiceLoader.load(IGamePluginService.class).stream().map(ServiceLoader.Provider::get).collect(toList());
-    }
-
-    @Bean
-    public List<IPostEntityProcessingService> postEntityProcessingServices() {
-        return ServiceLoader.load(IPostEntityProcessingService.class).stream().map(ServiceLoader.Provider::get).collect(toList());
+    public Game game(PluginManager pluginManager) {
+        return new Game(pluginManager);
     }
 }

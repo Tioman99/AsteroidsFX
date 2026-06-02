@@ -12,7 +12,6 @@ import dk.sdu.mmmi.cbse.common.services.IEntityProcessingService;
 import dk.sdu.mmmi.cbse.common.services.IGamePluginService;
 import dk.sdu.mmmi.cbse.common.services.IPostEntityProcessingService;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javafx.animation.AnimationTimer;
@@ -42,9 +41,7 @@ class Game {
     private final World world = new World();
     private final Map<Entity, Polygon> polygons = new ConcurrentHashMap<>();
     private final Pane gameWindow = new Pane();
-    private final List<IGamePluginService> gamePluginServices;
-    private final List<IEntityProcessingService> entityProcessingServiceList;
-    private final List<IPostEntityProcessingService> postEntityProcessingServices;
+    private final PluginManager pluginManager;
 
     private StackPane root;
     private StackPane pauseOverlay;
@@ -54,10 +51,8 @@ class Game {
     private Text scoreText;
     private AnimationTimer gameLoop;
 
-    Game(List<IGamePluginService> gamePluginServices, List<IEntityProcessingService> entityProcessingServiceList, List<IPostEntityProcessingService> postEntityProcessingServices) {
-        this.gamePluginServices = gamePluginServices;
-        this.entityProcessingServiceList = entityProcessingServiceList;
-        this.postEntityProcessingServices = postEntityProcessingServices;
+    Game(PluginManager pluginManager) {
+        this.pluginManager = pluginManager;
     }
 
     public void start(Stage window) throws Exception {
@@ -110,7 +105,7 @@ class Game {
         });
 
         // Lookup all Game Plugins using ServiceLoader
-        for (IGamePluginService iGamePlugin : getGamePluginServices()) {
+        for (IGamePluginService iGamePlugin : pluginManager.getAllPluginServices()) {
             iGamePlugin.start(gameData, world);
         }
         for (Entity entity : world.getEntities()) {
@@ -124,6 +119,8 @@ class Game {
         window.setScene(scene);
         window.setTitle("ASTEROIDS");
         window.show();
+
+        pluginManager.startWatcher();
     }
 
     private StackPane buildPauseOverlay() {
@@ -219,7 +216,11 @@ class Game {
         paused = false;
         gameData.setPlayerDead(false);
 
-        for (IGamePluginService plugin : getGamePluginServices()) {
+        // Discard any plugin-change signals that arrived during the game-over screen
+        // to avoid a spurious reload immediately after restart.
+        pluginManager.clearPendingChanges();
+
+        for (IGamePluginService plugin : pluginManager.getAllPluginServices()) {
             plugin.stop(gameData, world);
         }
         for (Entity e : new ArrayList<>(world.getEntities())) {
@@ -230,7 +231,7 @@ class Game {
         }
         polygons.clear();
 
-        for (IGamePluginService plugin : getGamePluginServices()) {
+        for (IGamePluginService plugin : pluginManager.getAllPluginServices()) {
             plugin.start(gameData, world);
         }
         for (Entity entity : world.getEntities()) {
@@ -259,10 +260,11 @@ class Game {
     }
 
     private void update() {
-        for (IEntityProcessingService entityProcessorService : getEntityProcessingServices()) {
+        pluginManager.checkForChanges(gameData, world);
+        for (IEntityProcessingService entityProcessorService : pluginManager.getAllEntityProcessors()) {
             entityProcessorService.process(gameData, world);
         }
-        for (IPostEntityProcessingService postEntityProcessorService : getPostEntityProcessingServices()) {
+        for (IPostEntityProcessingService postEntityProcessorService : pluginManager.getAllPostProcessors()) {
             postEntityProcessorService.process(gameData, world);
         }
     }
@@ -296,16 +298,5 @@ class Game {
         }
     }
 
-    public List<IGamePluginService> getGamePluginServices() {
-        return gamePluginServices;
-    }
-
-    public List<IEntityProcessingService> getEntityProcessingServices() {
-        return entityProcessingServiceList;
-    }
-
-    public List<IPostEntityProcessingService> getPostEntityProcessingServices() {
-        return postEntityProcessingServices;
-    }
 }
 
