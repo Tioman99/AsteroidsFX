@@ -40,6 +40,10 @@ public class PlayerControlSystem implements IEntityProcessingService {
     }
 
     private Collection<? extends BulletSPI> getBulletSPIs() {
-        return ServiceLoader.load(BulletSPI.class).stream().map(ServiceLoader.Provider::get).collect(toList());
+        ModuleLayer layer = getClass().getModule().getLayer();
+        ServiceLoader<BulletSPI> loader = layer != null
+                ? ServiceLoader.load(layer, BulletSPI.class)
+                : ServiceLoader.load(BulletSPI.class);
+        return loader.stream().map(ServiceLoader.Provider::get).collect(toList());
     }
 }
